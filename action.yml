@@ -10,7 +10,7 @@ inputs:
     required: false
     default: .
   format:
-    description: Diagnostic output format: human or json.
+    description: "Diagnostic output format: human or json."
     required: false
     default: human
 runs:
