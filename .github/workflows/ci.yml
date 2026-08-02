@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Check all targets and features
+        run: cargo check --locked --all-targets --all-features
+      - name: Run Clippy as an error gate
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - name: Compile the release binary
+        run: cargo build --locked --release
+      - name: Validate the crates.io package
+        run: cargo package --locked
+      - name: Validate the Linux/macOS installer syntax
+        run: bash -n install.sh scripts/check-fixtures-with-tsc.sh scripts/upsert-pr-comment.sh tests/action-comment.sh tests/fake-gh/gh
+      - name: Validate documentation links
+        run: python3 scripts/check-doc-links.py
+
+  typescript-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Prove tsborrow fixtures are valid TypeScript and JavaScript
+        run: bash scripts/check-fixtures-with-tsc.sh
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Validate unit, fixture-contract, and CLI integration tests
+        run: cargo test --locked
+
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Reject benchmarks without thresholds
+        shell: bash
+        run: |
+          set +e
+          output="$(cargo bench --locked --bench analyzer -- --config /dev/null 2>&1)"
+          status="$?"
+          set -e
+          printf '%s\n' "$output"
+          if [ "$status" -eq 0 ]; then
+            echo "benchmark unexpectedly accepted missing thresholds" >&2
+            exit 1
+          fi
+          grep -F 'missing threshold(s)' <<< "$output"
+      - name: Enforce analyzer performance thresholds in release mode
+        run: cargo bench --locked --bench analyzer
+
+  duplicates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Reject excessive code duplication
+        run: npx --yes jscpd@5.0.12 src clients packages/npm --config .jscpd.json
+
+  clients:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.22"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Check Go formatting
+        run: test -z "$(gofmt -l clients/go)"
+      - name: Vet Go client
+        run: go vet ./clients/go/...
+      - name: Test Go client
+        run: go test ./clients/go/...
+      - name: Check npm launcher syntax
+        run: node --check packages/npm/bin/tsborrow.js
+      - name: Validate npm package contents
+        working-directory: packages/npm
+        run: npm pack --dry-run
+
+  action-contract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check the reusable action accepts the passing suite
+        uses: ./
+        with:
+          path: tests/fixtures/pass
+      - name: Validate PR comment create, update, and deduplication
+        run: bash tests/action-comment.sh
+      - name: Capture an exact passing report
+        id: passing
+        uses: ./
+        with:
+          path: tests/fixtures/pass/resource-disposed.ts
+          format: json
+          comment: "false"
+      - name: Assert the passing report contents
+        shell: bash
+        env:
+          ACTUAL_SUMMARY: ${{ steps.passing.outputs.summary }}
+        run: |
+          expected='{"status":"ok","files":1,"diagnostics":0,"trackedOwners":1,"trackedBorrows":0}'
+          test "$ACTUAL_SUMMARY" = "$expected"
+      - name: Generate an HTML report through the Action
+        uses: ./
+        with:
+          path: tests/fixtures/pass/resource-disposed.ts
+          format: html
+          output: tsborrow-action-report.html
+          comment: "false"
+      - name: Validate the Action HTML report
+        shell: bash
+        run: |
+          test -s tsborrow-action-report.html
+          grep -F 'href="#file-0"' tsborrow-action-report.html
+          grep -F 'No ownership violations found in this file.' tsborrow-action-report.html
+      - name: Capture an exact failing report
+        id: borrowcheck
+        continue-on-error: true
+        uses: ./
+        with:
+          path: tests/fixtures/fail/use-after-dispose.ts
+          format: json
+          comment: "false"
+      - name: Assert the failing report contents and status
+        shell: bash
+        env:
+          ACTUAL_OUTCOME: ${{ steps.borrowcheck.outcome }}
+          ACTUAL_SUMMARY: ${{ steps.borrowcheck.outputs.summary }}
+        run: |
+          expected='{"status":"violations","files":1,"diagnostics":1,"trackedOwners":1,"trackedBorrows":0}'
+          test "$ACTUAL_OUTCOME" = "failure"
+          test "$ACTUAL_SUMMARY" = "$expected"
+
+  release:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - quality
+      - typescript-baseline
+      - test
+      - benchmark
+      - duplicates
+      - clients
+      - action-contract
+    permissions:
+      contents: write
+      id-token: write
+    uses: ./.github/workflows/release.yml
+    secrets: inherit

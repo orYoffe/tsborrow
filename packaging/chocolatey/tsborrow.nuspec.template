@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>tsborrow</id>
+    <version>__VERSION__</version>
+    <title>tsborrow</title>
+    <authors>tsborrow contributors</authors>
+    <projectUrl>https://github.com/orYoffe/tsborrow</projectUrl>
+    <licenseUrl>https://github.com/orYoffe/tsborrow/blob/v__VERSION__/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Resource lifetime checks for JavaScript and TypeScript.</description>
+    <summary>Rust-inspired resource and ownership validation for JS/TS.</summary>
+    <tags>typescript javascript rust cli static-analysis</tags>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

@@ -1,0 +1,74 @@
+name: TypeScript Borrow Checker
+description: Check JavaScript and TypeScript ownership and resource-lifetime contracts.
+author: ts-borrow-checker contributors
+branding:
+  icon: shield
+  color: orange
+inputs:
+  path:
+    description: File or directory to check.
+    required: false
+    default: .
+  format:
+    description: "Diagnostic output format: human, json, or html."
+    required: false
+    default: human
+  output:
+    description: Destination file required when format is html.
+    required: false
+    default: ""
+  comment:
+    description: Add or update one results comment when running on a pull request.
+    required: false
+    default: "true"
+outputs:
+  summary:
+    description: Final human or JSON summary line emitted by tsborrow.
+    value: ${{ steps.check.outputs.summary }}
+runs:
+  using: composite
+  steps:
+    - name: Run TypeScript Borrow Checker
+      id: check
+      shell: bash
+      env:
+        TSBORROW_INPUT_PATH: ${{ inputs.path }}
+        TSBORROW_INPUT_FORMAT: ${{ inputs.format }}
+        TSBORROW_INPUT_OUTPUT: ${{ inputs.output }}
+      run: |
+        report_file="$(mktemp)"
+        command=(cargo run --quiet --manifest-path "$GITHUB_ACTION_PATH/Cargo.toml" -- check "$TSBORROW_INPUT_PATH" --format "$TSBORROW_INPUT_FORMAT")
+        if [ -n "$TSBORROW_INPUT_OUTPUT" ]; then
+          command+=(--output "$TSBORROW_INPUT_OUTPUT")
+        fi
+        set +e
+        "${command[@]}" | tee "$report_file"
+        statuses=("${PIPESTATUS[@]}")
+        set -e
+        status="${statuses[0]}"
+        if [ "$status" -eq 0 ] && [ "${statuses[1]}" -ne 0 ]; then
+          status="${statuses[1]}"
+        fi
+        summary="$(tail -n 1 "$report_file")"
+        printf 'summary=%s\n' "$summary" >> "$GITHUB_OUTPUT"
+        printf 'exit_code=%s\n' "$status" >> "$GITHUB_OUTPUT"
+        printf 'report_path=%s\n' "$report_file" >> "$GITHUB_OUTPUT"
+    - name: Add or update pull request results
+      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TSBORROW_EXIT_CODE: ${{ steps.check.outputs.exit_code }}
+        TSBORROW_PR_NUMBER: ${{ github.event.pull_request.number }}
+        TSBORROW_REPORT_PATH: ${{ steps.check.outputs.report_path }}
+        TSBORROW_REPOSITORY: ${{ github.repository }}
+        TSBORROW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        TSBORROW_SHA: ${{ github.event.pull_request.head.sha }}
+        TSBORROW_SUMMARY: ${{ steps.check.outputs.summary }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/upsert-pr-comment.sh"
+    - name: Propagate checker status
+      shell: bash
+      env:
+        TSBORROW_EXIT_CODE: ${{ steps.check.outputs.exit_code }}
+      run: exit "$TSBORROW_EXIT_CODE"

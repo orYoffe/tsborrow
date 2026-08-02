@@ -1,0 +1,27 @@
+{
+  "name": "@oryoffe/tsborrow",
+  "version": "0.1.0",
+  "description": "Rust-powered resource lifetime checks for JavaScript and TypeScript",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/orYoffe/tsborrow.git"
+  },
+  "homepage": "https://github.com/orYoffe/tsborrow#readme",
+  "bugs": "https://github.com/orYoffe/tsborrow/issues",
+  "type": "module",
+  "bin": {
+    "tsborrow": "bin/tsborrow.js"
+  },
+  "files": [
+    "bin/tsborrow.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
