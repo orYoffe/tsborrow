@@ -21,6 +21,7 @@
 | `duplicates` | jscpd threshold across production Rust, Go, and npm launcher code. |
 | `clients` | Go and npm validation. |
 | `action-contract` | Composite Action behavior, HTML generation, exact summaries, and PR reporting. |
+| `release` | On pushes to `main` only, calls release automation after every preceding gate passes. |
 
 Both `push` and `pull_request` run CI. The duplicate executions intentionally validate both triggers. A failing fixture Action step uses `continue-on-error` only so the next assertion can prove the exact failure outcome and summary.
 
