@@ -1,0 +1,18 @@
+[package]
+name = "ts-borrow-checker"
+version = "0.1.0"
+edition = "2024"
+description = "Ownership and resource-lifetime checks for TypeScript and JavaScript"
+license = "MIT"
+
+[lib]
+name = "ts_borrow_checker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "ts-borrow-checker"
+path = "src/main.rs"
+
+[lints.rust]
+unsafe_code = "forbid"
+

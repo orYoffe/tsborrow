@@ -1,0 +1,21 @@
+name: TypeScript Borrow Checker
+description: Check JavaScript and TypeScript ownership and resource-lifetime contracts.
+author: ts-borrow-checker contributors
+branding:
+  icon: shield
+  color: orange
+inputs:
+  path:
+    description: File or directory to check.
+    required: false
+    default: .
+  format:
+    description: Diagnostic output format: human or json.
+    required: false
+    default: human
+runs:
+  using: composite
+  steps:
+    - name: Run TypeScript Borrow Checker
+      shell: bash
+      run: cargo run --quiet --manifest-path "$GITHUB_ACTION_PATH/Cargo.toml" -- check "${{ inputs.path }}" --format "${{ inputs.format }}"
