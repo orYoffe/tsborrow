@@ -41,7 +41,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - name: Run analyzer smoke benchmarks in release mode
+      - name: Reject benchmarks without thresholds
+        shell: bash
+        run: |
+          if cargo bench --locked --bench analyzer -- --config /dev/null; then
+            echo "benchmark unexpectedly accepted missing thresholds" >&2
+            exit 1
+          fi
+      - name: Enforce analyzer performance thresholds in release mode
         run: cargo bench --locked --bench analyzer
 
   duplicates:
