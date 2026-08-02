@@ -61,6 +61,15 @@ fn main() {
         }
     }
     if found > 0 {
+        if json {
+            println!(
+                "{{\"status\":\"violations\",\"files\":{file_count},\"diagnostics\":{found},\"trackedOwners\":{tracked_owners},\"trackedBorrows\":{tracked_borrows}}}"
+            );
+        } else {
+            println!(
+                "error: checked {file_count} source file(s); found {found} ownership violation(s) across {tracked_owners} ownership contract(s) and {tracked_borrows} borrow(s)"
+            );
+        }
         std::process::exit(1);
     }
     if tracked_owners == 0 {

@@ -23,11 +23,12 @@ type Diagnostic struct {
 }
 
 type Result struct {
-	Status         string
-	Files          int
-	TrackedOwners  int
-	TrackedBorrows int
-	Diagnostics    []Diagnostic
+	Status          string
+	Files           int
+	DiagnosticCount int
+	TrackedOwners   int
+	TrackedBorrows  int
+	Diagnostics     []Diagnostic
 }
 
 type Client struct {
@@ -79,10 +80,11 @@ func (failure ViolationsError) Error() string {
 
 type outputLine struct {
 	Diagnostic
-	Status         string `json:"status"`
-	Files          int    `json:"files"`
-	TrackedOwners  int    `json:"trackedOwners"`
-	TrackedBorrows int    `json:"trackedBorrows"`
+	Status          string `json:"status"`
+	Files           int    `json:"files"`
+	DiagnosticCount int    `json:"diagnostics"`
+	TrackedOwners   int    `json:"trackedOwners"`
+	TrackedBorrows  int    `json:"trackedBorrows"`
 }
 
 func parseOutput(output []byte) (Result, error) {
@@ -99,6 +101,7 @@ func parseOutput(output []byte) (Result, error) {
 		if line.Status != "" {
 			result.Status = line.Status
 			result.Files = line.Files
+			result.DiagnosticCount = line.DiagnosticCount
 			result.TrackedOwners = line.TrackedOwners
 			result.TrackedBorrows = line.TrackedBorrows
 		}

@@ -13,12 +13,30 @@ inputs:
     description: "Diagnostic output format: human or json."
     required: false
     default: human
+outputs:
+  summary:
+    description: Final human or JSON summary line emitted by tsborrow.
+    value: ${{ steps.check.outputs.summary }}
 runs:
   using: composite
   steps:
     - name: Run TypeScript Borrow Checker
+      id: check
       shell: bash
       env:
         TSBORROW_INPUT_PATH: ${{ inputs.path }}
         TSBORROW_INPUT_FORMAT: ${{ inputs.format }}
-      run: cargo run --quiet --manifest-path "$GITHUB_ACTION_PATH/Cargo.toml" -- check "$TSBORROW_INPUT_PATH" --format "$TSBORROW_INPUT_FORMAT"
+      run: |
+        report_file="$(mktemp)"
+        trap 'rm -f "$report_file"' EXIT
+        set +e
+        cargo run --quiet --manifest-path "$GITHUB_ACTION_PATH/Cargo.toml" -- check "$TSBORROW_INPUT_PATH" --format "$TSBORROW_INPUT_FORMAT" | tee "$report_file"
+        statuses=("${PIPESTATUS[@]}")
+        set -e
+        status="${statuses[0]}"
+        if [ "$status" -eq 0 ] && [ "${statuses[1]}" -ne 0 ]; then
+          status="${statuses[1]}"
+        fi
+        summary="$(tail -n 1 "$report_file")"
+        printf 'summary=%s\n' "$summary" >> "$GITHUB_OUTPUT"
+        exit "$status"

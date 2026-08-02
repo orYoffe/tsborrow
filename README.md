@@ -93,6 +93,8 @@ jobs:
 
 The Action exits non-zero when it finds diagnostics, so it works directly as a CI gate. Repository CI runs the complete passing fixture project and asserts that the complete failing project is rejected.
 
+The Action also exposes its exact final report as the `summary` output. Repository CI asserts the complete JSON summary for known passing and failing programs, while Rust integration tests assert the individual diagnostics. A dependency-free release-mode smoke benchmark runs on every push and pull request so analyzer throughput stays visible without introducing a benchmarking framework.
+
 ## Architecture direction
 
 The ownership state model follows Rust's move, aliasing, last-use lifetime, and drop-scope principles. The current explicit-contract front end is conservative and intentionally does not claim full JavaScript/TypeScript soundness. The next major boundary is a real JS/TS AST lowered into a control-flow graph; the golden conformance suite is the compatibility contract for that replacement.
