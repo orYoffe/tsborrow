@@ -11,7 +11,7 @@ homepage = "https://github.com/orYoffe/tsborrow"
 readme = "README.md"
 keywords = ["typescript", "javascript", "borrow", "resources", "cli"]
 categories = ["command-line-utilities", "development-tools"]
-include = ["src/**", "benches/**", "docs/check-audit.md", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE"]
+include = ["src/**", "benches/**", "docs/**", "Cargo.toml", "Cargo.lock", "README.md", "LICENSE"]
 
 [lib]
 name = "ts_borrow_checker"

@@ -31,6 +31,7 @@ dispose(file);                     // resource obligation satisfied
 ```sh
 cargo run -- check path/to/source
 cargo run -- check src --format json
+cargo run -- check src --format html --output tsborrow-report.html
 ```
 
 A successful run is explicit:
@@ -107,6 +108,10 @@ cargo bench --bench analyzer -- --threshold moves=600000 --threshold borrow-life
 ```
 
 On pull-request workflows, the Action creates one `tsborrow` results comment and updates that same comment on every run. The hidden marker is stable across commits and workflow runs, and duplicate matching comments are removed. Grant `pull-requests: write` as shown above; fork pull requests with read-only tokens still run the checker but receive a permission warning instead of failing for an unrelated reporting error. Set `comment: "false"` to disable PR comments.
+
+## Documentation
+
+See the [documentation hub](docs/README.md) for the complete CLI, HTML report, GitHub Action, integration, benchmark, diagnostic, and configuration references. Maintainer architecture, testing, release, security, and roadmap documents live under [internal documentation](docs/internal/README.md).
 
 ## Architecture direction
 

@@ -27,6 +27,8 @@ jobs:
         run: cargo package --locked
       - name: Validate the Linux/macOS installer syntax
         run: bash -n install.sh scripts/upsert-pr-comment.sh tests/action-comment.sh tests/fake-gh/gh
+      - name: Validate documentation links
+        run: python3 scripts/check-doc-links.py
 
   test:
     runs-on: ubuntu-latest
@@ -117,6 +119,19 @@ jobs:
         run: |
           expected='{"status":"ok","files":1,"diagnostics":0,"trackedOwners":1,"trackedBorrows":0}'
           test "$ACTUAL_SUMMARY" = "$expected"
+      - name: Generate an HTML report through the Action
+        uses: ./
+        with:
+          path: tests/fixtures/pass/resource-disposed.ts
+          format: html
+          output: tsborrow-action-report.html
+          comment: "false"
+      - name: Validate the Action HTML report
+        shell: bash
+        run: |
+          test -s tsborrow-action-report.html
+          grep -F 'href="#file-0"' tsborrow-action-report.html
+          grep -F 'No ownership violations found in this file.' tsborrow-action-report.html
       - name: Capture an exact failing report
         id: borrowcheck
         continue-on-error: true

@@ -1,4 +1,5 @@
 use std::process::Command;
+use std::{env, fs};
 
 #[test]
 fn successful_check_prints_an_explicit_summary() {
@@ -82,5 +83,50 @@ fn successful_json_check_reports_exact_counts() {
     assert_eq!(
         String::from_utf8(output.stdout).unwrap().trim_end(),
         r#"{"status":"ok","files":1,"diagnostics":0,"trackedOwners":1,"trackedBorrows":0}"#
+    );
+}
+
+#[test]
+fn failing_html_check_writes_a_navigable_report_before_exiting() {
+    let output_path = env::temp_dir().join(format!("tsborrow-report-{}.html", std::process::id()));
+    let _ = fs::remove_file(&output_path);
+    let output = Command::new(env!("CARGO_BIN_EXE_tsborrow"))
+        .args([
+            "check",
+            "tests/fixtures/fail/use-after-dispose.ts",
+            "--format",
+            "html",
+            "--output",
+        ])
+        .arg(&output_path)
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(1));
+    let report = fs::read_to_string(&output_path).unwrap();
+    fs::remove_file(&output_path).unwrap();
+    assert!(report.contains("href=\"#file-0\""));
+    assert!(report.contains("TSB002"));
+    assert!(report.contains("use of disposed value"));
+    assert!(report.contains("line 5, column 1"));
+}
+
+#[test]
+fn html_format_requires_an_explicit_output_path() {
+    let output = Command::new(env!("CARGO_BIN_EXE_tsborrow"))
+        .args([
+            "check",
+            "tests/fixtures/pass/resource-disposed.ts",
+            "--format",
+            "html",
+        ])
+        .output()
+        .unwrap();
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .contains("requires --output")
     );
 }
