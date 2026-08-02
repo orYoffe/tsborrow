@@ -1,6 +1,6 @@
 use std::{env, fs, path::Path};
 
-use ts_borrow_checker::analyze;
+use ts_borrow_checker::analyze_report;
 
 fn main() {
     let mut arguments = env::args().skip(1);
@@ -29,10 +29,15 @@ fn main() {
     }
     let file_count = files.len();
     let mut found = 0;
+    let mut tracked_owners = 0;
+    let mut tracked_borrows = 0;
     for file in files {
         let source = fs::read_to_string(&file)
             .unwrap_or_else(|error| fail(&format!("cannot read {}: {error}", file.display())));
-        for diagnostic in analyze(&source) {
+        let report = analyze_report(&source);
+        tracked_owners += report.tracked_owners;
+        tracked_borrows += report.tracked_borrows;
+        for diagnostic in report.diagnostics {
             found += 1;
             if json {
                 println!(
@@ -58,10 +63,24 @@ fn main() {
     if found > 0 {
         std::process::exit(1);
     }
+    if tracked_owners == 0 {
+        let message = format!(
+            "checked {file_count} source file(s), but found no ownership contracts; add Owned<T>, Resource<T>, @owned, or @resource"
+        );
+        if env::var_os("GITHUB_ACTIONS").is_some() {
+            eprintln!("::warning title=No ownership contracts::{message}");
+        } else {
+            eprintln!("warning: {message}");
+        }
+    }
     if json {
-        println!("{{\"status\":\"ok\",\"files\":{file_count},\"diagnostics\":0}}");
+        println!(
+            "{{\"status\":\"ok\",\"files\":{file_count},\"diagnostics\":0,\"trackedOwners\":{tracked_owners},\"trackedBorrows\":{tracked_borrows}}}"
+        );
     } else {
-        println!("ok: checked {file_count} source file(s); no ownership violations found");
+        println!(
+            "ok: checked {file_count} source file(s); analyzed {tracked_owners} ownership contract(s) and {tracked_borrows} borrow(s); no ownership violations found"
+        );
     }
 }
 

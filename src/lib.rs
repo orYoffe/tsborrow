@@ -14,6 +14,13 @@ pub struct Diagnostic {
     pub message: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AnalysisReport {
+    pub diagnostics: Vec<Diagnostic>,
+    pub tracked_owners: usize,
+    pub tracked_borrows: usize,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OwnerKind {
     Owned,
@@ -80,6 +87,14 @@ enum Context {
 /// Ownership is opt-in through `Owned<T>` / `Resource<T>` TypeScript types or an
 /// immediately preceding `@owned` / `@resource` JSDoc marker in JavaScript.
 pub fn analyze(source: &str) -> Vec<Diagnostic> {
+    analyze_report(source).diagnostics
+}
+
+/// Analyze source and return diagnostics together with adoption statistics.
+///
+/// The statistics let CI distinguish a clean analysis from a source tree that
+/// has not declared any ownership contracts yet.
+pub fn analyze_report(source: &str) -> AnalysisReport {
     let source_lines = source.lines().collect::<Vec<_>>();
     let code_lines = source_lines
         .iter()
@@ -192,7 +207,11 @@ pub fn analyze(source: &str) -> Vec<Diagnostic> {
         }
     }
 
-    diagnostics
+    AnalysisReport {
+        diagnostics,
+        tracked_owners: owners.len(),
+        tracked_borrows: borrows.len(),
+    }
 }
 
 fn collect_borrows(code_lines: &[String]) -> BTreeMap<String, Borrow> {

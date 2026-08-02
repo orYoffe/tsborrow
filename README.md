@@ -36,8 +36,10 @@ cargo run -- check src --format json
 A successful run is explicit:
 
 ```text
-ok: checked 12 source file(s); no ownership violations found
+ok: checked 12 source file(s); analyzed 8 ownership contract(s) and 5 borrow(s); no ownership violations found
 ```
+
+If a project has no `Owned<T>`, `Resource<T>`, `@owned`, or `@resource` contracts yet, the command still succeeds but prints a warning. This prevents a clean baseline from being mistaken for meaningful ownership coverage.
 
 ## Use in GitHub Actions
 
