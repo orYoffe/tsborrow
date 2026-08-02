@@ -38,7 +38,7 @@ details="$(awk '
 ' "$TSBORROW_REPORT_PATH")"
 
 short_sha="${TSBORROW_SHA:0:12}"
-body="$(printf '%s\n\n## tsborrow results\n\n**%s**\n\n%s\n\n<details><summary>Full report</summary>\n\n%s\n\n</details>\n\n[View workflow run](%s) for commit \`%s\`.' \
+body="$(printf '%s\n\n## tsborrow results\n\n**%s**\n\n%s\n\n<details><summary>Full report</summary>\n\n%s\n\n</details>\n\n[View workflow run](%s) for commit `%s`.' \
   "$marker" "$result" "${TSBORROW_SUMMARY:-No summary was emitted.}" "$details" "$TSBORROW_RUN_URL" "$short_sha")"
 
 list_comments() {
