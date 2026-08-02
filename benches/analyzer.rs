@@ -99,6 +99,8 @@ fn arguments() -> Result<(PathBuf, BTreeMap<String, f64>, bool), String> {
                 insert_threshold(&mut overrides, &value, "command line")?;
             }
             "--help" | "-h" => help = true,
+            // Cargo supplies this marker to custom benchmark harnesses.
+            "--bench" => {}
             value if value.starts_with("--config=") => {
                 config = PathBuf::from(value.trim_start_matches("--config="));
             }

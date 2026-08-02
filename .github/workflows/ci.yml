@@ -44,10 +44,16 @@ jobs:
       - name: Reject benchmarks without thresholds
         shell: bash
         run: |
-          if cargo bench --locked --bench analyzer -- --config /dev/null; then
+          set +e
+          output="$(cargo bench --locked --bench analyzer -- --config /dev/null 2>&1)"
+          status="$?"
+          set -e
+          printf '%s\n' "$output"
+          if [ "$status" -eq 0 ]; then
             echo "benchmark unexpectedly accepted missing thresholds" >&2
             exit 1
           fi
+          grep -F 'missing threshold(s)' <<< "$output"
       - name: Enforce analyzer performance thresholds in release mode
         run: cargo bench --locked --bench analyzer
 
