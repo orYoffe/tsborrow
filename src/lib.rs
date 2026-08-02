@@ -67,19 +67,12 @@ impl Borrow {
             .map_or(self.last_use_line, |ended| ended.min(self.last_use_line));
         self.created_line < line && line <= active_until
     }
-
-    fn crosses_line(&self, line: usize) -> bool {
-        self.created_line < line
-            && self.last_use_line > line
-            && self.ended_line.is_none_or(|end| end > line)
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Context {
     Block,
     Conditional,
-    Loop,
 }
 
 /// Analyze one JavaScript or TypeScript source file.
@@ -141,8 +134,6 @@ pub fn analyze_report(source: &str) -> AnalysisReport {
         pending_jsdoc = None;
 
         check_borrow_uses(code, source_line, line, &borrows, &mut diagnostics);
-        check_async_boundary(code, source_line, line, &borrows, &mut diagnostics);
-
         if let Some((borrow_name, owner_name, kind)) = borrow_declaration(code) {
             check_new_borrow(
                 source_line,
@@ -327,15 +318,6 @@ fn check_move(
     };
     let column = identifier_column(source_line, place);
 
-    if contexts.contains(&Context::Loop) {
-        diagnostics.push(diagnostic(
-            "TSB006",
-            line,
-            column,
-            format!("move of `{place}` may execute more than once inside a loop"),
-        ));
-        return;
-    }
     if !active_borrows(base, line, borrows).is_empty() {
         diagnostics.push(diagnostic(
             "E0505",
@@ -509,48 +491,7 @@ fn check_borrow_uses(
                 column,
                 format!("use of ended borrow: `{}`", borrow.name),
             ));
-        } else if code.trim_start().starts_with("return ") {
-            diagnostics.push(diagnostic(
-                "E0515",
-                line,
-                column,
-                format!(
-                    "cannot return borrow `{}` of local value `{}`",
-                    borrow.name, borrow.owner
-                ),
-            ));
-        } else if code.contains("=>") {
-            diagnostics.push(diagnostic(
-                "E0521",
-                line,
-                column,
-                format!("borrowed value `{}` escapes into a callback", borrow.name),
-            ));
         }
-    }
-}
-
-fn check_async_boundary(
-    code: &str,
-    source_line: &str,
-    line: usize,
-    borrows: &BTreeMap<String, Borrow>,
-    diagnostics: &mut Vec<Diagnostic>,
-) {
-    if !contains_identifier(code, "await") {
-        return;
-    }
-    let column = identifier_column(source_line, "await");
-    for borrow in borrows.values().filter(|borrow| borrow.crosses_line(line)) {
-        diagnostics.push(diagnostic(
-            "TSB004",
-            line,
-            column,
-            format!(
-                "borrow `{}` of `{}` crosses an async suspension point",
-                borrow.name, borrow.owner
-            ),
-        ));
     }
 }
 
@@ -667,23 +608,13 @@ fn update_contexts(code: &str, contexts: &mut Vec<Context>) {
     let closes = code.chars().filter(|character| *character == '}').count();
     let net_opens = opens.saturating_sub(closes.saturating_sub(closing));
     for open_index in 0..net_opens {
-        let context = if open_index == 0 && is_loop_header(code) {
-            Context::Loop
-        } else if open_index == 0 && is_conditional_header(code) {
+        let context = if open_index == 0 && is_conditional_header(code) {
             Context::Conditional
         } else {
             Context::Block
         };
         contexts.push(context);
     }
-}
-
-fn is_loop_header(code: &str) -> bool {
-    let code = code.trim_start();
-    code.starts_with("for (")
-        || code.starts_with("for(")
-        || code.starts_with("while (")
-        || code.starts_with("while(")
 }
 
 fn is_conditional_header(code: &str) -> bool {

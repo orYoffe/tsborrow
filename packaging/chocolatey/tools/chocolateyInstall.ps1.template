@@ -1,0 +1,11 @@
+$ErrorActionPreference = 'Stop'
+
+$packageArgs = @{
+  packageName    = 'tsborrow'
+  unzipLocation = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
+  url64bit       = 'https://github.com/orYoffe/tsborrow/releases/download/v__VERSION__/tsborrow-win32-x64.zip'
+  checksum64     = '__WIN_X64_SHA256__'
+  checksumType64 = 'sha256'
+}
+
+Install-ChocolateyZipPackage @packageArgs

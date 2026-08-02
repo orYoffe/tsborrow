@@ -1,0 +1,8 @@
+{
+  "minTokens": 70,
+  "minLines": 8,
+  "format": ["rust", "javascript", "typescript", "go"],
+  "ignorePattern": ["**/target/**", "**/node_modules/**", "**/vendor/**"],
+  "reporters": ["console", "threshold"],
+  "threshold": 3
+}

@@ -1,1 +1,0 @@
-TSB004:6:3: borrow `reader` of `file` crosses an async suspension point

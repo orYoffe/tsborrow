@@ -1,1 +1,0 @@
-E0515:6:10: cannot return borrow `view` of local value `secret`

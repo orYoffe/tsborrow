@@ -6,7 +6,7 @@ fn main() {
     let mut arguments = env::args().skip(1);
     let command = arguments.next().unwrap_or_else(|| "check".to_owned());
     if command != "check" {
-        eprintln!("usage: ts-borrow-checker check <path> [--format human|json]");
+        eprintln!("usage: tsborrow check <path> [--format human|json]");
         std::process::exit(2);
     }
     let Some(path) = arguments.next() else {
@@ -42,11 +42,11 @@ fn main() {
             if json {
                 println!(
                     "{{\"file\":\"{}\",\"code\":\"{}\",\"line\":{},\"column\":{},\"message\":\"{}\"}}",
-                    file.display(),
+                    json_escape(&file.to_string_lossy()),
                     diagnostic.code,
                     diagnostic.line,
                     diagnostic.column,
-                    diagnostic.message
+                    json_escape(&diagnostic.message)
                 );
             } else {
                 println!(
@@ -118,4 +118,23 @@ fn is_source(path: &Path) -> bool {
 fn fail(message: &str) -> ! {
     eprintln!("error: {message}");
     std::process::exit(2)
+}
+
+fn json_escape(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            '"' => escaped.push_str("\\\""),
+            '\\' => escaped.push_str("\\\\"),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            character if character.is_control() => {
+                use std::fmt::Write;
+                let _ = write!(escaped, "\\u{:04x}", character as u32);
+            }
+            character => escaped.push(character),
+        }
+    }
+    escaped
 }

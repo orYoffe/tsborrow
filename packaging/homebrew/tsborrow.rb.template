@@ -1,0 +1,29 @@
+class Tsborrow < Formula
+  desc "Resource lifetime checks for JavaScript and TypeScript"
+  homepage "https://github.com/orYoffe/tsborrow"
+  version "__VERSION__"
+  license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/orYoffe/tsborrow/releases/download/v__VERSION__/tsborrow-darwin-arm64.tar.gz"
+      sha256 "__DARWIN_ARM64_SHA256__"
+    else
+      url "https://github.com/orYoffe/tsborrow/releases/download/v__VERSION__/tsborrow-darwin-x64.tar.gz"
+      sha256 "__DARWIN_X64_SHA256__"
+    end
+  end
+
+  on_linux do
+    url "https://github.com/orYoffe/tsborrow/releases/download/v__VERSION__/tsborrow-linux-x64.tar.gz"
+    sha256 "__LINUX_X64_SHA256__"
+  end
+
+  def install
+    bin.install "tsborrow"
+  end
+
+  test do
+    assert_match "usage: tsborrow", shell_output("#{bin}/tsborrow unknown 2>&1", 2)
+  end
+end

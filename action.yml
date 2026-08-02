@@ -18,4 +18,7 @@ runs:
   steps:
     - name: Run TypeScript Borrow Checker
       shell: bash
-      run: cargo run --quiet --manifest-path "$GITHUB_ACTION_PATH/Cargo.toml" -- check "${{ inputs.path }}" --format "${{ inputs.format }}"
+      env:
+        TSBORROW_INPUT_PATH: ${{ inputs.path }}
+        TSBORROW_INPUT_FORMAT: ${{ inputs.format }}
+      run: cargo run --quiet --manifest-path "$GITHUB_ACTION_PATH/Cargo.toml" -- check "$TSBORROW_INPUT_PATH" --format "$TSBORROW_INPUT_FORMAT"

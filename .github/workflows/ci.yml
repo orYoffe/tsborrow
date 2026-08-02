@@ -8,19 +8,69 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Check all targets and features
+        run: cargo check --locked --all-targets --all-features
+      - name: Run Clippy as an error gate
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+      - name: Compile the release binary
+        run: cargo build --locked --release
+      - name: Validate the crates.io package
+        run: cargo package --locked
+      - name: Validate the Linux/macOS installer syntax
+        run: bash -n install.sh
+
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo fmt --check
-      - run: cargo test --all-targets
-      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --locked --all-targets
+
+  duplicates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Reject excessive code duplication
+        run: npx --yes jscpd@5.0.12 src clients packages/npm --config .jscpd.json
+
+  clients:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.22"
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Check Go formatting
+        run: test -z "$(gofmt -l clients/go)"
+      - name: Vet Go client
+        run: go vet ./clients/go/...
+      - name: Test Go client
+        run: go test ./clients/go/...
+      - name: Check npm launcher syntax
+        run: node --check packages/npm/bin/tsborrow.js
+      - name: Validate npm package contents
+        working-directory: packages/npm
+        run: npm pack --dry-run
 
   action-contract:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
       - name: Check the reusable action accepts the passing suite
         uses: ./

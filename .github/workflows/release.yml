@@ -1,0 +1,193 @@
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: linux-x64
+            binary: target/release/tsborrow
+          - os: macos-15-intel
+            asset: darwin-x64
+            binary: target/release/tsborrow
+          - os: macos-14
+            asset: darwin-arm64
+            binary: target/release/tsborrow
+          - os: windows-latest
+            asset: win32-x64
+            binary: target/release/tsborrow.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Require tag and crate versions to match
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          crate_version="$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -1)"
+          test "$crate_version" = "${GITHUB_REF_NAME#v}"
+      - run: cargo build --locked --release
+      - name: Package Unix artifact
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p dist/archive
+          cp "${{ matrix.binary }}" "dist/tsborrow-${{ matrix.asset }}"
+          cp "${{ matrix.binary }}" dist/archive/tsborrow
+          tar -czf "dist/tsborrow-${{ matrix.asset }}.tar.gz" -C dist/archive tsborrow
+          shasum -a 256 "dist/tsborrow-${{ matrix.asset }}" | sed 's#dist/##' > "dist/tsborrow-${{ matrix.asset }}.sha256"
+          shasum -a 256 "dist/tsborrow-${{ matrix.asset }}.tar.gz" | sed 's#dist/##' > "dist/tsborrow-${{ matrix.asset }}.tar.gz.sha256"
+          rm -rf dist/archive
+      - name: Package Windows artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path dist, dist/archive | Out-Null
+          Copy-Item '${{ matrix.binary }}' 'dist/tsborrow-${{ matrix.asset }}.exe'
+          Copy-Item '${{ matrix.binary }}' 'dist/archive/tsborrow.exe'
+          Compress-Archive -Path 'dist/archive/tsborrow.exe' -DestinationPath 'dist/tsborrow-${{ matrix.asset }}.zip'
+          $raw = (Get-FileHash 'dist/tsborrow-${{ matrix.asset }}.exe' -Algorithm SHA256).Hash.ToLower()
+          "$raw  tsborrow-${{ matrix.asset }}.exe" | Set-Content 'dist/tsborrow-${{ matrix.asset }}.exe.sha256' -Encoding ascii
+          $zip = (Get-FileHash 'dist/tsborrow-${{ matrix.asset }}.zip' -Algorithm SHA256).Hash.ToLower()
+          "$zip  tsborrow-${{ matrix.asset }}.zip" | Set-Content 'dist/tsborrow-${{ matrix.asset }}.zip.sha256' -Encoding ascii
+          Remove-Item -Recurse -Force dist/archive
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tsborrow-${{ matrix.asset }}
+          path: dist/*
+          if-no-files-found: error
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/* --verify-tag --generate-notes
+
+  publish-cargo:
+    needs: github-release
+    runs-on: ubuntu-latest
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish crate
+        if: env.CARGO_REGISTRY_TOKEN != ''
+        run: cargo publish --locked
+
+  publish-npm:
+    needs: github-release
+    runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Match npm version to tag
+        working-directory: packages/npm
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+      - name: Validate npm tarball
+        working-directory: packages/npm
+        run: npm pack --dry-run
+      - name: Publish npm launcher
+        if: env.NODE_AUTH_TOKEN != ''
+        working-directory: packages/npm
+        run: npm publish --access public --provenance
+
+  package-homebrew:
+    needs: github-release
+    runs-on: ubuntu-latest
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Render formula from release checksums
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          linux="$(cut -d' ' -f1 dist/tsborrow-linux-x64.tar.gz.sha256)"
+          mac_x64="$(cut -d' ' -f1 dist/tsborrow-darwin-x64.tar.gz.sha256)"
+          mac_arm64="$(cut -d' ' -f1 dist/tsborrow-darwin-arm64.tar.gz.sha256)"
+          sed \
+            -e "s/__VERSION__/$version/g" \
+            -e "s/__LINUX_X64_SHA256__/$linux/g" \
+            -e "s/__DARWIN_X64_SHA256__/$mac_x64/g" \
+            -e "s/__DARWIN_ARM64_SHA256__/$mac_arm64/g" \
+            packaging/homebrew/tsborrow.rb.template > tsborrow.rb
+      - uses: actions/upload-artifact@v4
+        with:
+          name: homebrew-formula
+          path: tsborrow.rb
+      - name: Check out Homebrew tap
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        uses: actions/checkout@v6
+        with:
+          repository: orYoffe/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+      - name: Publish Homebrew formula
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        shell: bash
+        run: |
+          mkdir -p tap/Formula
+          cp tsborrow.rb tap/Formula/tsborrow.rb
+          cd tap
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add Formula/tsborrow.rb
+          git commit -m "Update tsborrow to ${GITHUB_REF_NAME#v}"
+          git push
+
+  package-chocolatey:
+    needs: github-release
+    runs-on: windows-latest
+    env:
+      CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v5
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Render and pack Chocolatey package
+        shell: pwsh
+        run: |
+          $version = $env:GITHUB_REF_NAME.TrimStart('v')
+          $checksum = ((Get-Content 'dist/tsborrow-win32-x64.zip.sha256') -split '\s+')[0]
+          New-Item -ItemType Directory -Path choco/tools | Out-Null
+          (Get-Content 'packaging/chocolatey/tsborrow.nuspec.template' -Raw).Replace('__VERSION__', $version) | Set-Content 'choco/tsborrow.nuspec' -Encoding utf8
+          (Get-Content 'packaging/chocolatey/tools/chocolateyInstall.ps1.template' -Raw).Replace('__VERSION__', $version).Replace('__WIN_X64_SHA256__', $checksum) | Set-Content 'choco/tools/chocolateyInstall.ps1' -Encoding utf8
+          choco pack choco/tsborrow.nuspec --outputdirectory choco
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chocolatey-package
+          path: choco/*.nupkg
+      - name: Publish Chocolatey package
+        if: env.CHOCO_API_KEY != ''
+        shell: pwsh
+        run: choco push (Get-ChildItem choco/*.nupkg).FullName --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY

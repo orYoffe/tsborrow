@@ -2,7 +2,7 @@ use std::process::Command;
 
 #[test]
 fn successful_check_prints_an_explicit_summary() {
-    let output = Command::new(env!("CARGO_BIN_EXE_ts-borrow-checker"))
+    let output = Command::new(env!("CARGO_BIN_EXE_tsborrow"))
         .args(["check", "tests/fixtures/pass"])
         .output()
         .unwrap();
@@ -22,7 +22,7 @@ fn successful_check_prints_an_explicit_summary() {
 
 #[test]
 fn unannotated_code_warns_instead_of_implying_full_coverage() {
-    let output = Command::new(env!("CARGO_BIN_EXE_ts-borrow-checker"))
+    let output = Command::new(env!("CARGO_BIN_EXE_tsborrow"))
         .args(["check", "tests/samples/unannotated.ts"])
         .output()
         .unwrap();
@@ -42,7 +42,7 @@ fn unannotated_code_warns_instead_of_implying_full_coverage() {
 
 #[test]
 fn failing_check_returns_a_ci_failure_status() {
-    let output = Command::new(env!("CARGO_BIN_EXE_ts-borrow-checker"))
+    let output = Command::new(env!("CARGO_BIN_EXE_tsborrow"))
         .args(["check", "tests/fixtures/fail"])
         .output()
         .unwrap();
