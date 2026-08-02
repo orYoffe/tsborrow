@@ -13,6 +13,10 @@ inputs:
     description: "Diagnostic output format: human or json."
     required: false
     default: human
+  comment:
+    description: Add or update one results comment when running on a pull request.
+    required: false
+    default: "true"
 outputs:
   summary:
     description: Final human or JSON summary line emitted by tsborrow.
@@ -28,7 +32,6 @@ runs:
         TSBORROW_INPUT_FORMAT: ${{ inputs.format }}
       run: |
         report_file="$(mktemp)"
-        trap 'rm -f "$report_file"' EXIT
         set +e
         cargo run --quiet --manifest-path "$GITHUB_ACTION_PATH/Cargo.toml" -- check "$TSBORROW_INPUT_PATH" --format "$TSBORROW_INPUT_FORMAT" | tee "$report_file"
         statuses=("${PIPESTATUS[@]}")
@@ -39,4 +42,24 @@ runs:
         fi
         summary="$(tail -n 1 "$report_file")"
         printf 'summary=%s\n' "$summary" >> "$GITHUB_OUTPUT"
-        exit "$status"
+        printf 'exit_code=%s\n' "$status" >> "$GITHUB_OUTPUT"
+        printf 'report_path=%s\n' "$report_file" >> "$GITHUB_OUTPUT"
+    - name: Add or update pull request results
+      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      continue-on-error: true
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TSBORROW_EXIT_CODE: ${{ steps.check.outputs.exit_code }}
+        TSBORROW_PR_NUMBER: ${{ github.event.pull_request.number }}
+        TSBORROW_REPORT_PATH: ${{ steps.check.outputs.report_path }}
+        TSBORROW_REPOSITORY: ${{ github.repository }}
+        TSBORROW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        TSBORROW_SHA: ${{ github.event.pull_request.head.sha }}
+        TSBORROW_SUMMARY: ${{ steps.check.outputs.summary }}
+      run: bash "$GITHUB_ACTION_PATH/scripts/upsert-pr-comment.sh"
+    - name: Propagate checker status
+      shell: bash
+      env:
+        TSBORROW_EXIT_CODE: ${{ steps.check.outputs.exit_code }}
+      run: exit "$TSBORROW_EXIT_CODE"

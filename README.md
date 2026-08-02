@@ -83,6 +83,9 @@ Until release binaries are published, the Action compiles its pinned source chec
 jobs:
   borrow-check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -94,6 +97,8 @@ jobs:
 The Action exits non-zero when it finds diagnostics, so it works directly as a CI gate. Repository CI runs the complete passing fixture project and asserts that the complete failing project is rejected.
 
 The Action also exposes its exact final report as the `summary` output. Repository CI asserts the complete JSON summary for known passing and failing programs, while Rust integration tests assert the individual diagnostics. A dependency-free release-mode smoke benchmark runs on every push and pull request so analyzer throughput stays visible without introducing a benchmarking framework.
+
+On pull-request workflows, the Action creates one `tsborrow` results comment and updates that same comment on every run. The hidden marker is stable across commits and workflow runs, and duplicate matching comments are removed. Grant `pull-requests: write` as shown above; fork pull requests with read-only tokens still run the checker but receive a permission warning instead of failing for an unrelated reporting error. Set `comment: "false"` to disable PR comments.
 
 ## Architecture direction
 

@@ -26,7 +26,7 @@ jobs:
       - name: Validate the crates.io package
         run: cargo package --locked
       - name: Validate the Linux/macOS installer syntax
-        run: bash -n install.sh
+        run: bash -n install.sh scripts/upsert-pr-comment.sh tests/action-comment.sh tests/fake-gh/gh
 
   test:
     runs-on: ubuntu-latest
@@ -78,6 +78,9 @@ jobs:
 
   action-contract:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@stable
@@ -85,12 +88,15 @@ jobs:
         uses: ./
         with:
           path: tests/fixtures/pass
+      - name: Validate PR comment create, update, and deduplication
+        run: bash tests/action-comment.sh
       - name: Capture an exact passing report
         id: passing
         uses: ./
         with:
           path: tests/fixtures/pass/resource-disposed.ts
           format: json
+          comment: "false"
       - name: Assert the passing report contents
         shell: bash
         env:
@@ -105,6 +111,7 @@ jobs:
         with:
           path: tests/fixtures/fail/use-after-dispose.ts
           format: json
+          comment: "false"
       - name: Assert the failing report contents and status
         shell: bash
         env:
