@@ -22,6 +22,12 @@ fn main() {
                     .is_some_and(|value| value == "json")
     });
     let files = source_files(Path::new(&path));
+    if files.is_empty() {
+        fail(&format!(
+            "no JavaScript or TypeScript source files found in {path}"
+        ));
+    }
+    let file_count = files.len();
     let mut found = 0;
     for file in files {
         let source = fs::read_to_string(&file)
@@ -51,6 +57,11 @@ fn main() {
     }
     if found > 0 {
         std::process::exit(1);
+    }
+    if json {
+        println!("{{\"status\":\"ok\",\"files\":{file_count},\"diagnostics\":0}}");
+    } else {
+        println!("ok: checked {file_count} source file(s); no ownership violations found");
     }
 }
 

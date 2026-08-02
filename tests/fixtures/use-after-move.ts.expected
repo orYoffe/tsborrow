@@ -1,1 +1,1 @@
-E2003:5:1: use after move: `connection`
+E0382:5:1: use of moved value: `connection`

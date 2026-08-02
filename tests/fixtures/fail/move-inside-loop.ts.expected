@@ -1,0 +1,1 @@
+TSB006:5:20: move of `token` may execute more than once inside a loop

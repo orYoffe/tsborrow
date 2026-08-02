@@ -22,12 +22,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Check the reusable action reports fixture failures
+      - name: Check the reusable action accepts the passing suite
+        uses: ./
+        with:
+          path: tests/fixtures/pass
+      - name: Check the reusable action reports the failing suite
         id: borrowcheck
         continue-on-error: true
         uses: ./
         with:
-          path: tests/fixtures/use-after-move.ts
+          path: tests/fixtures/fail
       - name: Assert the action failed as expected
         shell: bash
         run: test "${{ steps.borrowcheck.outcome }}" = "failure"

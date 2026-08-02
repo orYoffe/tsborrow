@@ -1,1 +1,1 @@
-E2005:4:9: value disposed more than once: `socket`
+TSB003:4:9: value disposed more than once: `socket`

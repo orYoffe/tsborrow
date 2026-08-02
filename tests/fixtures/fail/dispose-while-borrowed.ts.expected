@@ -1,0 +1,2 @@
+E0505:5:9: cannot dispose `stream` because it is borrowed
+TSB001:3:7: resource may leave scope without being disposed: `stream`

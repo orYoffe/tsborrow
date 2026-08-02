@@ -1,0 +1,1 @@
+E0502:5:26: cannot borrow `cache` as mutable because it is also borrowed as shared
