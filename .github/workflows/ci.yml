@@ -26,9 +26,19 @@ jobs:
       - name: Validate the crates.io package
         run: cargo package --locked
       - name: Validate the Linux/macOS installer syntax
-        run: bash -n install.sh scripts/upsert-pr-comment.sh tests/action-comment.sh tests/fake-gh/gh
+        run: bash -n install.sh scripts/check-fixtures-with-tsc.sh scripts/upsert-pr-comment.sh tests/action-comment.sh tests/fake-gh/gh
       - name: Validate documentation links
         run: python3 scripts/check-doc-links.py
+
+  typescript-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Prove tsborrow fixtures are valid TypeScript and JavaScript
+        run: bash scripts/check-fixtures-with-tsc.sh
 
   test:
     runs-on: ubuntu-latest

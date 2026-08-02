@@ -1,6 +1,6 @@
 type Owned<T> = T;
 
-const record: Owned<Record<string, string>> = loadRecord();
+const record: Owned<DataRecord> = loadRecord();
 const reader = borrow(record);
 reader.read();
 const writer = borrowMut(record);

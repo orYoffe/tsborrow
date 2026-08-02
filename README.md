@@ -97,7 +97,7 @@ jobs:
 
 The Action exits non-zero when it finds diagnostics, so it works directly as a CI gate. Repository CI runs the complete passing fixture project and asserts that the complete failing project is rejected.
 
-The Action also exposes its exact final report as the `summary` output. Repository CI asserts the complete JSON summary for known passing and failing programs, while Rust integration tests assert the individual diagnostics.
+The Action also exposes its exact final report as the `summary` output. Repository CI asserts the complete JSON summary for known passing and failing programs, while Rust integration tests assert the individual diagnostics. A separate strict `tsc --noEmit` gate accepts every fixture—including every tsborrow-negative case—and rejects a known-invalid control, proving these checks add ownership analysis instead of relabeling ordinary TypeScript compiler errors.
 
 Dependency-free release-mode benchmarks run on every push and pull request. Every case must have a positive threshold in `benches/thresholds.conf`; a missing threshold or throughput below the configured limit exits non-zero. Limits can be supplied from another file or overridden individually:
 
